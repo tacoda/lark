@@ -2,6 +2,7 @@ use crate::lexer::*;
 use crate::object::*;
 use std::error::Error;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct ParseError {
@@ -47,7 +48,12 @@ fn parse_list(tokens: &mut Vec<Token>) -> Result<Object, ParseError> {
         }
         let t = token.unwrap();
         match t {
+            Token::Keyword(k) => list.push(Object::Keyword(k)),
+            Token::If => list.push(Object::If),
+            Token::BinaryOp(b) => list.push(Object::BinaryOp(b)),
             Token::Integer(n) => list.push(Object::Integer(n)),
+            Token::Float(f) => list.push(Object::Float(f)),
+            Token::String(s) => list.push(Object::String(s)),
             Token::Symbol(s) => list.push(Object::Symbol(s)),
             Token::LParen => {
                 tokens.push(Token::LParen);
@@ -55,12 +61,12 @@ fn parse_list(tokens: &mut Vec<Token>) -> Result<Object, ParseError> {
                 list.push(sub_list);
             }
             Token::RParen => {
-                return Ok(Object::List(list));
+                return Ok(Object::List(Rc::new(list)));
             }
         }
     }
 
-    Ok(Object::List(list))
+    Ok(Object::List(Rc::new(list)))
 }
 
 #[cfg(test)]
@@ -72,11 +78,11 @@ mod tests {
         let list = parse("(+ 1 2)").unwrap();
         assert_eq!(
             list,
-            Object::List(vec![
-                Object::Symbol("+".to_string()),
+            Object::List(Rc::new(vec![
+                Object::BinaryOp("+".to_string()),
                 Object::Integer(1),
                 Object::Integer(2),
-            ])
+            ]))
         );
     }
 
@@ -90,27 +96,27 @@ mod tests {
         let list = parse(program).unwrap();
         assert_eq!(
             list,
-            Object::List(vec![
-                Object::List(vec![
-                    Object::Symbol("define".to_string()),
+            Object::List(Rc::new(vec![
+                Object::List(Rc::new(vec![
+                    Object::Keyword("define".to_string()),
                     Object::Symbol("r".to_string()),
                     Object::Integer(10),
-                ]),
-                Object::List(vec![
-                    Object::Symbol("define".to_string()),
+                ])),
+                Object::List(Rc::new(vec![
+                    Object::Keyword("define".to_string()),
                     Object::Symbol("pi".to_string()),
                     Object::Integer(314),
-                ]),
-                Object::List(vec![
-                    Object::Symbol("*".to_string()),
+                ])),
+                Object::List(Rc::new(vec![
+                    Object::BinaryOp("*".to_string()),
                     Object::Symbol("pi".to_string()),
-                    Object::List(vec![
-                        Object::Symbol("*".to_string()),
+                    Object::List(Rc::new(vec![
+                        Object::BinaryOp("*".to_string()),
                         Object::Symbol("r".to_string()),
                         Object::Symbol("r".to_string()),
-                    ]),
-                ]),
-            ])
+                    ])),
+                ])),
+            ]))
         );
     }
 }
