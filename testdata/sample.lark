@@ -1,0 +1,4 @@
+; golden sample: one datum per top-level form
+(define (square x) (* x x))
+'(1 2 3)
+#(a "b" 3.5)
