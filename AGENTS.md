@@ -1,8 +1,8 @@
 # Lark
 
 Lisp for agents: a small Scheme in Go optimized for agentic writing via
-AST-as-data. See `docs/PLAN.md` for the full plan and `docs/SPEC.md` for the
-language reference (once it exists).
+AST-as-data. See `docs/PLAN.md` for the plan and `docs/SPEC.md` for the full
+language reference.
 
 ## Build & test
 

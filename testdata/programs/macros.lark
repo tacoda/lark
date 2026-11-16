@@ -1,0 +1,6 @@
+; lark-defined macros: threading and unless
+(defmacro -> (x . forms)
+  (fold-left (lambda (acc f) (if (pair? f) (cons (car f) (cons acc (cdr f))) (list f acc)))
+             x forms))
+(defmacro unless (t . body) `(if ,t #f (begin ,@body)))
+(list (-> 5 (+ 1) (* 2)) (unless #t 0) (unless #f 7))

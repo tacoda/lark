@@ -7,7 +7,9 @@
 - Phase 2 (eval: special forms, closures, TCO, core builtins): **done**
 - Phase 3 (defmacro, macroexpand-1/macroexpand, macro expansion in tail position): **done**
 - Phase 4 (agent layer: parse/emit/eval/procedure-src; AST rename→emit→eval loop proven in lark itself): **done**
-- Phase 5 (CLI: repl/run/-e/parse/emit + docs/SPEC.md): next
+- Phase 5 (CLI: repl/run/-e/parse/emit, golden programs in testdata/programs, docs/SPEC.md): **done**
+
+**v0 complete.** All phases landed green; CI runs vet + tests on every push.
 
 Lisp for agents: a small Scheme written in Go, designed for *agentic writing*.
 An agent holding lark can construct, inspect, transform, and evaluate programs

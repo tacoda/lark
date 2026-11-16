@@ -1,0 +1,9 @@
+; the agent loop: parse source, rename a symbol in the AST, eval it
+(define (rename form old new)
+  (cond ((eq? form old) new)
+        ((pair? form) (cons (rename (car form) old new)
+                            (rename (cdr form) old new)))
+        (else form)))
+(define ast (parse "(define (greet name) (list 'hello name))"))
+(eval (rename ast 'greet 'welcome))
+(welcome 'world)
