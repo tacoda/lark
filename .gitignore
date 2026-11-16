@@ -1,4 +1,4 @@
 /lark
 /bin/
 *.test
-*.out
+# golden outputs under testdata/ are checked in — do not ignore *.out
