@@ -35,6 +35,7 @@ func init() {
 	defListOps()
 	defMisc()
 	defMacroBuiltins()
+	defAgent()
 }
 
 // --- shared helpers ---
