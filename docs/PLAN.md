@@ -5,7 +5,8 @@
 - Phase 0 (scaffolding: license, CI, layout): **done**
 - Phase 1 (sexp: data model, reader, printer + round-trip properties): **done**
 - Phase 2 (eval: special forms, closures, TCO, core builtins): **done**
-- Phase 3 (macros & macroexpand): next
+- Phase 3 (defmacro, macroexpand-1/macroexpand, macro expansion in tail position): **done**
+- Phase 4 (agent layer: parse/emit/eval/procedure-src builtins): next
 
 Lisp for agents: a small Scheme written in Go, designed for *agentic writing*.
 An agent holding lark can construct, inspect, transform, and evaluate programs

@@ -89,7 +89,7 @@ func defListOps() {
 		}
 		return elems[i], nil
 	})
-	def("map", func(args []sexp.Value) (sexp.Value, error) {
+	defEnv("map", func(args []sexp.Value, env *Env) (sexp.Value, error) {
 		if len(args) < 2 {
 			return nil, fmt.Errorf("map: want a procedure and at least one list, got %d args", len(args))
 		}
@@ -112,7 +112,7 @@ func defListOps() {
 			for j, e := range lists {
 				callArgs[j] = e[i]
 			}
-			v, err := call(fn, callArgs)
+			v, err := call(fn, callArgs, env)
 			if err != nil {
 				return nil, err
 			}
@@ -120,7 +120,7 @@ func defListOps() {
 		}
 		return sexp.List(out...), nil
 	})
-	def("filter", func(args []sexp.Value) (sexp.Value, error) {
+	defEnv("filter", func(args []sexp.Value, env *Env) (sexp.Value, error) {
 		if err := argErr("filter", args, 2, 2); err != nil {
 			return nil, err
 		}
@@ -130,7 +130,7 @@ func defListOps() {
 		}
 		var out []sexp.Value
 		for _, e := range elems {
-			v, err := call(args[0], []sexp.Value{e})
+			v, err := call(args[0], []sexp.Value{e}, env)
 			if err != nil {
 				return nil, err
 			}
@@ -140,7 +140,7 @@ func defListOps() {
 		}
 		return sexp.List(out...), nil
 	})
-	def("fold-left", func(args []sexp.Value) (sexp.Value, error) {
+	defEnv("fold-left", func(args []sexp.Value, env *Env) (sexp.Value, error) {
 		if err := argErr("fold-left", args, 3, 3); err != nil {
 			return nil, err
 		}
@@ -150,7 +150,7 @@ func defListOps() {
 		}
 		acc := args[1]
 		for _, e := range elems {
-			v, err := call(args[0], []sexp.Value{acc, e})
+			v, err := call(args[0], []sexp.Value{acc, e}, env)
 			if err != nil {
 				return nil, err
 			}
@@ -158,7 +158,7 @@ func defListOps() {
 		}
 		return acc, nil
 	})
-	def("apply", func(args []sexp.Value) (sexp.Value, error) {
+	defEnv("apply", func(args []sexp.Value, env *Env) (sexp.Value, error) {
 		if len(args) < 2 {
 			return nil, fmt.Errorf("apply: want a procedure and an argument list, got %d args", len(args))
 		}
@@ -167,6 +167,6 @@ func defListOps() {
 			return nil, fmt.Errorf("apply: last arg not a list: %s", sexp.Write(args[len(args)-1]))
 		}
 		callArgs := append(append([]sexp.Value{}, args[1:len(args)-1]...), last...)
-		return call(args[0], callArgs)
+		return call(args[0], callArgs, env)
 	})
 }

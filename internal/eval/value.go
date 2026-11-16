@@ -51,11 +51,49 @@ func (l *Lambda) bind(args []sexp.Value) (*Env, error) {
 	return env, nil
 }
 
+// Macro is a defmacro-defined transformer: raw (unevaluated) args in,
+// code out. The expansion is evaluated in the caller's environment.
+type Macro struct {
+	Name string
+	Lam  *Lambda // params + body, evaluated with raw args bound
+}
+
+func (*Macro) LarkValue()       {}
+func (m *Macro) String() string { return "#<macro " + m.Name + ">" }
+
+// expand runs the macro body with raw args bound and returns the expansion.
+func (m *Macro) expand(args []sexp.Value) (sexp.Value, error) {
+	env, err := m.Lam.bind(args)
+	if err != nil {
+		return nil, err
+	}
+	return Eval(&sexp.Pair{Car: sexp.Sym("begin"), Cdr: m.Lam.Body}, env)
+}
+
+// expandRaw expands a call form (m arg...) with unevaluated args.
+func expandRaw(m *Macro, form *sexp.Pair) (sexp.Value, error) {
+	elems, tail := sexp.Split(form)
+	if _, ok := tail.(sexp.Nil); !ok {
+		return nil, fmt.Errorf("macro %s: improper argument list: %s", m.Name, sexp.Write(form))
+	}
+	return m.expand(elems[1:])
+}
+
 // Builtin is a Go-implemented procedure.
 type Builtin struct {
 	Name string
 	Fn   func(args []sexp.Value) (sexp.Value, error)
 }
+
+// EnvBuiltin is a Go-implemented procedure that needs the caller's env
+// (macroexpand, map, apply, ...).
+type EnvBuiltin struct {
+	Name string
+	Fn   func(args []sexp.Value, env *Env) (sexp.Value, error)
+}
+
+func (*EnvBuiltin) LarkValue()       {}
+func (b *EnvBuiltin) String() string { return "#<builtin " + b.Name + ">" }
 
 func (*Builtin) LarkValue()       {}
 func (b *Builtin) String() string { return "#<builtin " + b.Name + ">" }

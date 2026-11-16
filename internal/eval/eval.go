@@ -37,12 +37,19 @@ const (
 	formNext                    // *vp/*envp hold the next tail expression
 )
 
-// Eval evaluates v in env. Tail positions — lambda application, if branches,
-// begin/cond/case bodies, and/or last operands — continue the loop instead of
-// recursing, so (loop 1000000) does not grow the Go stack.
+// maxExpansions caps macro expansion per Eval call so a self-expanding macro
+// errors instead of looping forever.
+const maxExpansions = 100000
+
+// Eval evaluates v in env. Tail positions — macro expansion, lambda
+// application, if branches, begin/cond/case bodies, and/or last operands —
+// continue the loop instead of recursing, so (loop 1000000) does not grow the
+// Go stack.
 //
-// Truthiness: only #f is false. Special-form names are reserved words.
+// Truthiness: only #f is false. A head symbol bound to a macro expands before
+// special-form dispatch, so defmacro can shadow built-in forms.
 func Eval(v sexp.Value, env *Env) (sexp.Value, error) {
+	expansions := 0
 	for {
 		switch x := v.(type) {
 		case sexp.Sym:
@@ -53,6 +60,20 @@ func Eval(v sexp.Value, env *Env) (sexp.Value, error) {
 			return val, nil
 		case *sexp.Pair:
 			if hs, ok := x.Car.(sexp.Sym); ok {
+				if mv, ok := env.Lookup(string(hs)); ok {
+					if m, ok := mv.(*Macro); ok {
+						ex, err := expandRaw(m, x)
+						if err != nil {
+							return nil, err
+						}
+						expansions++
+						if expansions > maxExpansions {
+							return nil, fmt.Errorf("macro expansion limit exceeded (%d)", maxExpansions)
+						}
+						v = ex
+						continue
+					}
+				}
 				kind, err := evalForm(string(hs), x, env, &v, &env)
 				if err != nil {
 					return nil, err
@@ -82,7 +103,7 @@ func Eval(v sexp.Value, env *Env) (sexp.Value, error) {
 				v = &sexp.Pair{Car: sexp.Sym("begin"), Cdr: lam.Body}
 				continue
 			}
-			return call(fn, args)
+			return call(fn, args, env)
 		default:
 			return v, nil
 		}
@@ -91,16 +112,24 @@ func Eval(v sexp.Value, env *Env) (sexp.Value, error) {
 
 // call applies fn to args without tail-call optimization (used for builtins
 // and for apply/map/filter, whose caller is already a Go function).
-func call(fn sexp.Value, args []sexp.Value) (sexp.Value, error) {
+func call(fn sexp.Value, args []sexp.Value, env *Env) (sexp.Value, error) {
 	switch f := fn.(type) {
 	case *Builtin:
 		return f.Fn(args)
+	case *EnvBuiltin:
+		return f.Fn(args, env)
 	case *Lambda:
-		env, err := f.bind(args)
+		callEnv, err := f.bind(args)
 		if err != nil {
 			return nil, err
 		}
-		return Eval(&sexp.Pair{Car: sexp.Sym("begin"), Cdr: f.Body}, env)
+		return Eval(&sexp.Pair{Car: sexp.Sym("begin"), Cdr: f.Body}, callEnv)
+	case *Macro:
+		ex, err := f.expand(args)
+		if err != nil {
+			return nil, err
+		}
+		return Eval(ex, env)
 	default:
 		return nil, fmt.Errorf("not a procedure: %s", sexp.Write(fn))
 	}
@@ -225,6 +254,40 @@ func evalForm(name string, x *sexp.Pair, env *Env, vp *sexp.Value, envp **Env) (
 			return formValue, fmt.Errorf("lambda: bad form: %s", sexp.Write(x))
 		}
 		*vp = &Lambda{Params: elems[1], Body: sexp.ListTail(sexp.NilVal, elems[2:]...), Env: env}
+		return formValue, nil
+	case "defmacro":
+		if len(elems) < 3 {
+			return formValue, fmt.Errorf("defmacro: bad form: %s", sexp.Write(x))
+		}
+		var name string
+		var params sexp.Value
+		var body []sexp.Value
+		switch t := elems[1].(type) {
+		case sexp.Sym:
+			// (defmacro name (params...) body...)
+			if len(elems) < 4 {
+				return formValue, fmt.Errorf("defmacro: bad form: %s", sexp.Write(x))
+			}
+			name = string(t)
+			params = elems[2]
+			body = elems[3:]
+		case *sexp.Pair:
+			// (defmacro (name params...) body...)
+			fname, ok := t.Car.(sexp.Sym)
+			if !ok {
+				return formValue, fmt.Errorf("defmacro: bad name: %s", sexp.Write(t.Car))
+			}
+			name = string(fname)
+			params = t.Cdr
+			body = elems[2:]
+		default:
+			return formValue, fmt.Errorf("defmacro: bad target: %s", sexp.Write(elems[1]))
+		}
+		if len(body) == 0 {
+			return formValue, fmt.Errorf("defmacro: empty body: %s", sexp.Write(x))
+		}
+		env.Define(name, &Macro{Name: name, Lam: &Lambda{Params: params, Body: sexp.ListTail(sexp.NilVal, body...), Env: env}})
+		*vp = sexp.NilVal
 		return formValue, nil
 	case "let", "let*", "letrec":
 		if len(elems) < 3 {

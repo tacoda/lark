@@ -83,7 +83,7 @@ func defMisc() {
 	one("boolean?", func(v sexp.Value) bool { _, ok := v.(sexp.Bool); return ok })
 	one("procedure?", func(v sexp.Value) bool {
 		switch v.(type) {
-		case *Lambda, *Builtin:
+		case *Lambda, *Builtin, *EnvBuiltin, *Macro:
 			return true
 		}
 		return false
